@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-// Dynamic API & WebSocket host so phone/tablet on same Wi-Fi connects seamlessly
-const HOST = window.location.hostname || 'localhost';
-const API_BASE = `http://${HOST}:8000/api`;
-const WS_URL = `ws://${HOST}:8000/api/ws`;
+const API_BASE = '/api';
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${window.location.host}/api/ws`;
 
 // --- SVG Icons ---
 const GripIcon = () => (
@@ -81,7 +80,6 @@ export default function App() {
   // Modals
   const [editingTodo, setEditingTodo] = useState(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [networkInfo, setNetworkInfo] = useState(null);
   const [copied, setCopied] = useState(false);
 
   // Notifications
@@ -112,19 +110,6 @@ export default function App() {
       setLoading(false);
     }
   }, []);
-
-  // Fetch Network Info for Cross-Device Connect
-  const fetchNetworkInfo = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/system/network-info`);
-      if (res.ok) {
-        const data = await res.json();
-        setNetworkInfo(data);
-      }
-    } catch (e) {
-      console.warn('Network info fetch error:', e);
-    }
-  };
 
   // WebSocket Live Sync Connection
   useEffect(() => {
@@ -181,8 +166,6 @@ export default function App() {
 
     connectWebSocket();
     fetchTodos();
-    fetchNetworkInfo();
-
     // Fallback polling every 4 seconds for resilience across mobile network drops
     const fallbackPoll = setInterval(fetchTodos, 4000);
 
@@ -380,8 +363,7 @@ export default function App() {
   };
 
   const handleCopyLink = () => {
-    const url = networkInfo?.frontend_url || `http://${window.location.hostname}:5173`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(window.location.origin);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -408,7 +390,7 @@ export default function App() {
   const recurringCount = todos.filter((t) => t.recurrence && t.recurrence !== 'none').length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-  const phoneAccessUrl = networkInfo?.frontend_url || `http://${window.location.hostname}:5173`;
+  const phoneAccessUrl = window.location.origin;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=${encodeURIComponent(phoneAccessUrl)}`;
 
   return (
@@ -449,7 +431,6 @@ export default function App() {
         <button
           className="sync-btn"
           onClick={() => {
-            fetchNetworkInfo();
             setShowSyncModal(true);
           }}
           title="Open lists on your smartphone or tablet"
