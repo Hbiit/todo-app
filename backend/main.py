@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import asc, text
 from dateutil.relativedelta import relativedelta
 
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SQLALCHEMY_DATABASE_URL
 from models import Todo
 from schemas import TodoCreate, TodoUpdate, TodoReorder, TodoResponse
 
@@ -24,15 +24,19 @@ from schemas import TodoCreate, TodoUpdate, TodoReorder, TodoResponse
 
 def _ensure_sqlite_columns():
     """Ensure newly added columns exist in the SQLite database without wiping user data."""
-    Base.metadata.create_all(bind=engine)
-    with engine.connect() as conn:
-        result = conn.execute(text("PRAGMA table_info(todos)"))
-        existing_cols = [row[1] for row in result.fetchall()]
-        if "recurrence" not in existing_cols:
-            conn.execute(text("ALTER TABLE todos ADD COLUMN recurrence VARCHAR DEFAULT 'none'"))
-        if "completed_at" not in existing_cols:
-            conn.execute(text("ALTER TABLE todos ADD COLUMN completed_at DATETIME NULL"))
-        conn.commit()
+    try:
+        Base.metadata.create_all(bind=engine)
+        if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+            with engine.connect() as conn:
+                result = conn.execute(text("PRAGMA table_info(todos)"))
+                existing_cols = [row[1] for row in result.fetchall()]
+                if "recurrence" not in existing_cols:
+                    conn.execute(text("ALTER TABLE todos ADD COLUMN recurrence VARCHAR DEFAULT 'none'"))
+                if "completed_at" not in existing_cols:
+                    conn.execute(text("ALTER TABLE todos ADD COLUMN completed_at DATETIME NULL"))
+                conn.commit()
+    except Exception as e:
+        print(f"Database initialization warning: {e}")
 
 
 _ensure_sqlite_columns()
@@ -87,7 +91,25 @@ app = FastAPI(
     description="Full-featured Todo API with recurring tasks, drag-and-drop, and cross-device sync.",
     version="2.0.0",
     lifespan=lifespan,
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json",
 )
+
+# ---------------------------------------------------------------------------
+# Health / Root Status Check
+# ---------------------------------------------------------------------------
+
+@app.get("/api")
+@app.get("/api/")
+@app.get("/api/health")
+def api_health():
+    """Health check endpoint confirming API is running."""
+    return {
+        "status": "healthy",
+        "app": "Taskflow Todo API",
+        "version": "2.0.0",
+        "docs": "/api/docs",
+    }
 
 # ---------------------------------------------------------------------------
 # CORS

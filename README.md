@@ -51,6 +51,19 @@ Open a second terminal in `todo-app/frontend`:
 
 ---
 
+## ⚡ Deploy to Vercel (1-Click Ready)
+
+This repository is pre-configured with a zero-config setup for **Vercel** (`vercel.json`, `api/index.py`, and root `package.json`):
+
+1. Push your code to GitHub.
+2. Go to your [Vercel Dashboard](https://vercel.com/new) and click **"Add New Project"**.
+3. Select your `todo-app` repository.
+4. Leave all build settings at their defaults (Vercel automatically detects `vercel.json` and builds both frontend and backend).
+5. *(Optional)* If you want persistent task storage across serverless cold starts, add a `DATABASE_URL` environment variable pointing to a free PostgreSQL database (e.g. from [Neon](https://neon.tech) or [Supabase](https://supabase.com)). If omitted, it will automatically use an in-memory/temp SQLite database.
+6. Click **Deploy**!
+
+---
+
 ## 📁 Project Architecture
 
 ```

@@ -115,13 +115,20 @@ export default function App() {
   useEffect(() => {
     let reconnectTimeout = null;
     let pingInterval = null;
+    let reconnectAttempts = 0;
 
     const connectWebSocket = () => {
+      // Don't keep hammering WebSockets if unavailable (e.g. serverless environments like Vercel)
+      if (reconnectAttempts >= 3) {
+        return;
+      }
+
       try {
         const socket = new WebSocket(WS_URL);
         wsRef.current = socket;
 
         socket.onopen = () => {
+          reconnectAttempts = 0;
           setIsLiveConnected(true);
           // Keep-alive ping
           pingInterval = setInterval(() => {
@@ -153,14 +160,20 @@ export default function App() {
         socket.onclose = () => {
           setIsLiveConnected(false);
           clearInterval(pingInterval);
-          reconnectTimeout = setTimeout(connectWebSocket, 3000);
+          reconnectAttempts++;
+          if (reconnectAttempts < 3) {
+            reconnectTimeout = setTimeout(connectWebSocket, 4000);
+          }
         };
 
         socket.onerror = () => {
           socket.close();
         };
       } catch (err) {
-        reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        reconnectAttempts++;
+        if (reconnectAttempts < 3) {
+          reconnectTimeout = setTimeout(connectWebSocket, 4000);
+        }
       }
     };
 
@@ -418,14 +431,20 @@ export default function App() {
 
       {/* Top Navigation Bar: Cross-Device Sync Status & Connect Button */}
       <div className="top-nav">
-        <div className="sync-status-indicator" title="Connected devices update each other in real-time">
-          <span className={`live-dot ${isLiveConnected ? 'active' : ''}`} />
+        <div className="sync-status-indicator" title="Connected devices update each other">
+          <span className={`live-dot ${isLiveConnected || (!error && todos.length >= 0) ? 'active' : ''}`} />
           <span>
-            {isLiveConnected ? 'Live Synced' : 'Sync Connecting...'}
+            {isLiveConnected ? 'Live Synced' : (error ? 'Sync Offline' : 'Cloud Synced')}
           </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-            ({syncClients} {syncClients === 1 ? 'device' : 'devices'} active)
-          </span>
+          {isLiveConnected ? (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+              ({syncClients} {syncClients === 1 ? 'device' : 'devices'} active)
+            </span>
+          ) : (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+              (Auto)
+            </span>
+          )}
         </div>
 
         <button
